@@ -15,7 +15,7 @@ paper_corpus:
 
 email:
   sender: ${oc.env:SENDER}
-  receivers: ${oc.env:RECEIVERS}
+  receivers: ${oc.env:RECEIVERS,${oc.env:RECEIVER,null}}
   smtp_server: ${oc.env:SMTP_SERVER,smtp.qq.com}
   smtp_port: ${oc.env:SMTP_PORT,465}
   sender_password: ${oc.env:SENDER_PASSWORD}
