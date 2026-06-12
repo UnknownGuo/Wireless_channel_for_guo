@@ -1,0 +1,92 @@
+# Group Research Profile
+# Auto-generated from /media/guo/KINGSTON/save_paper/ (84 papers)
+# PI: Qiuming Zhu, NUAA (Nanjing University of Aeronautics and Astronautics)
+# Key Lab: Dynamic Cognitive System of Electromagnetic Spectrum Space
+#
+# Profile structure:
+# - core_keywords: must match at least one to pass
+# - scenario_keywords: strengthen relevance
+# - negative_keywords: out-of-scope topics to reject
+
+profile:
+  core_keywords:
+    - channel model
+    - channel modeling
+    - non-stationary
+    - geometry-based
+    - GBSM
+    - channel measurement
+    - channel sounding
+    - path loss
+    - shadow fading
+    - Doppler
+    - Doppler frequency
+    - radio map
+    - spectrum map
+    - beam training
+    - angle estimation
+    - ray tracing
+    - channel estimation
+    - channel parameter
+    - channel characteristic
+    - channel fading
+    - propagation channel
+    - twin-cluster
+    - MIMO channel
+    - massive MIMO
+    - channel emulator
+    - channel gain map
+
+  scenario_keywords:
+    - UAV
+    - unmanned aerial
+    - air-to-ground
+    - air-to-air
+    - V2V
+    - vehicular
+    - mmWave
+    - millimeter wave
+    - ultra-wideband
+    - UWB
+    - RIS
+    - reconfigurable intelligent surface
+    - ISAC
+    - integrated sensing
+    - visible light
+    - maritime
+    - ship
+    - vessel
+    - railway
+    - HST
+    - high-speed train
+    - lunar
+    - indoor office
+    - cell-free
+    - massive MIMO
+    - sub-6 GHz
+    - terahertz
+    - THz
+    - holographic MIMO
+
+  negative_keywords:
+    - graph signal
+    - crisis management
+    - cloud security
+    - traffic volume
+    - traffic estimation
+    - space debris
+    - blockchain
+    - cyber-physical
+    - generic denoising
+    - polynomial chaos
+    - denoising of graph
+    - supply chain
+    - financial
+    - healthcare management
+    - food safety
+    - social network
+
+  scoring:
+    core_weight: 2.0
+    scenario_weight: 1.5
+    negative_penalty: -5.0

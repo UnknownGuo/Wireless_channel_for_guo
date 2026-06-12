@@ -46,14 +46,17 @@ class ArxivRetriever(BaseRetriever):
         authors = [a.name for a in raw_paper.authors]
         abstract = raw_paper.summary
         pdf_url = raw_paper.pdf_url
-        try:
-            with ThreadPoolExecutor(max_workers=1) as pool:
-                full_text = pool.submit(extract_text_from_pdf, raw_paper).result(timeout=PDF_EXTRACT_TIMEOUT)
-        except TimeoutError:
-            logger.warning(f"PDF extraction timed out for {raw_paper.title}")
-            full_text = None
-        if full_text is None:
-            full_text = extract_text_from_tar(raw_paper)
+        full_text = None
+        if self.config.source.arxiv.get("extract_full_text", False):
+            try:
+                with ThreadPoolExecutor(max_workers=1) as pool:
+                    full_text = pool.submit(extract_text_from_pdf, raw_paper).result(timeout=PDF_EXTRACT_TIMEOUT)
+            except TimeoutError:
+                logger.warning(f"PDF extraction timed out for {raw_paper.title}")
+                full_text = None
+            if full_text is None:
+                full_text = extract_text_from_tar(raw_paper)
+        arxiv_id = raw_paper.entry_id.rstrip('/').split('/')[-1]
         return Paper(
             source=self.name,
             title=title,
@@ -61,7 +64,10 @@ class ArxivRetriever(BaseRetriever):
             abstract=abstract,
             url=raw_paper.entry_id,
             pdf_url=pdf_url,
-            full_text=full_text
+            full_text=full_text,
+            arxiv_id=arxiv_id,
+            source_urls={self.name: raw_paper.entry_id},
+            published_date=raw_paper.published.replace(tzinfo=None) if raw_paper.published else None,
         )
 
 def extract_text_from_pdf(paper: ArxivResult) -> str | None:

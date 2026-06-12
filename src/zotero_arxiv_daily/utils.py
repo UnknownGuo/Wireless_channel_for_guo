@@ -92,9 +92,23 @@ def glob_match(path:str, pattern:str) -> bool:
     re_pattern = glob.translate(pattern,recursive=True)
     return re.match(re_pattern, path) is not None
 
+def get_email_receivers(config:DictConfig) -> list[str]:
+    receivers = config.email.get("receivers", None)
+    if receivers is None:
+        receiver = config.email.get("receiver", None)
+        receivers = [receiver] if receiver else []
+    elif isinstance(receivers, str):
+        receivers = [x.strip() for x in receivers.split(',') if x.strip()]
+    else:
+        receivers = [str(x).strip() for x in receivers if str(x).strip()]
+    if not receivers:
+        raise ValueError("No email receivers configured. Set email.receiver or email.receivers")
+    return receivers
+
+
 def send_email(config:DictConfig, html:str):
     sender = config.email.sender
-    receiver = config.email.receiver
+    receivers = get_email_receivers(config)
     password = config.email.sender_password
     smtp_server = config.email.smtp_server
     smtp_port = config.email.smtp_port
@@ -104,7 +118,11 @@ def send_email(config:DictConfig, html:str):
 
     msg = MIMEText(html, 'html', 'utf-8')
     msg['From'] = _format_addr('Github Action <%s>' % sender)
-    msg['To'] = _format_addr('You <%s>' % receiver)
+    hide_receivers = config.email.get("hide_receivers", False)
+    if hide_receivers:
+        msg['To'] = _format_addr('Wireless Channel Recommender <%s>' % sender)
+    else:
+        msg['To'] = ', '.join(receivers)
     today = datetime.datetime.now().strftime('%Y/%m/%d')
     msg['Subject'] = Header(f'Daily arXiv {today}', 'utf-8').encode()
 
@@ -120,5 +138,5 @@ def send_email(config:DictConfig, html:str):
             server = smtplib.SMTP(smtp_server, smtp_port)
 
     server.login(sender, password)
-    server.sendmail(sender, [receiver], msg.as_string())
+    server.sendmail(sender, receivers, msg.as_string())
     server.quit()

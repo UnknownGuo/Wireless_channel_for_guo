@@ -1,26 +1,78 @@
-zotero:
-  user_id: ${oc.env:ZOTERO_ID}
-  api_key: ${oc.env:ZOTERO_KEY}
-  include_path: null
+# Local files config
+# ==================
+# Put PDFs under data/inbox/ and ingest them into data/corpus.jsonl.
+# The reranker uses OpenAI-compatible embeddings via SiliconFlow.
+# No Zotero is needed for this workflow.
+
+corpus:
+  provider: local_pdf
+
+paper_corpus:
+  db_path: data/corpus.jsonl
+  inbox_dir: data/inbox
+  processed_dir: data/processed
+  failed_dir: data/failed
 
 email:
   sender: ${oc.env:SENDER}
-  receiver: ${oc.env:RECEIVER}
-  smtp_server: smtp.qq.com
-  smtp_port: 465
+  receivers: ${oc.env:RECEIVERS}
+  smtp_server: ${oc.env:SMTP_SERVER,smtp.qq.com}
+  smtp_port: ${oc.env:SMTP_PORT,465}
   sender_password: ${oc.env:SENDER_PASSWORD}
+  hide_receivers: true
 
 llm:
   api:
-    key: ${oc.env:OPENAI_API_KEY}
-    base_url: ${oc.env:OPENAI_API_BASE}
+    key: ${oc.env:DEEPSEEK_API_KEY}
+    base_url: ${oc.env:DEEPSEEK_API_BASE,https://api.deepseek.com}
   generation_kwargs:
-    model: gpt-4o-mini
+    model: deepseek-chat
+    max_tokens: 4096
+  language: Chinese
+
+reranker:
+  api:
+    key: ${oc.env:SILICONFLOW_API_KEY}
+    base_url: ${oc.env:SILICONFLOW_BASE_URL,https://api.siliconflow.cn/v1}
+    model: Qwen/Qwen3-Embedding-0.6B
+    batch_size: 64
 
 source:
   arxiv:
-    category: ["cs.AI","cs.CV","cs.LG","cs.CL"]
+    category:
+      - cs.IT
+      - eess.SP
+      - eess.SY
+      - cs.NI
+    extract_full_text: false
+
+  openalex:
+    query:
+      - non-stationary channel model UAV
+      - geometry-based stochastic channel model MIMO
+      - V2V MIMO channel model
+      - air-to-ground channel measurement path loss
+      - radio environment map spectrum map
+      - beam training mmWave UAV
+      - Doppler channel non-stationary
+      - RIS channel model
+      - ISAC channel estimation
+      - visible light communication channel model
+    limit: 100
+    # 默认固定查 7 天前。设 TARGET_DATE=YYYY-MM-DD 则查某天。
+    target_date: ${oc.env:TARGET_DATE,null}
+    date_offset_days: 7
 
 executor:
-  debug: ${oc.env:DEBUG,null}
-  source: ['arxiv']
+  debug: false
+  send_empty: false
+  max_workers: 2
+  max_paper_num: 15
+  source:
+    - openalex
+    - arxiv
+  reranker: api
+  generate_details: true
+  send_email: ${oc.env:SEND_EMAIL,true}
+  report_path: ${oc.env:REPORT_PATH,null}
+  seen_papers_file: data/seen_papers.json

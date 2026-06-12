@@ -20,6 +20,11 @@ class Paper:
     tldr: Optional[str] = None
     affiliations: Optional[list[str]] = None
     score: Optional[float] = None
+    doi: Optional[str] = None
+    arxiv_id: Optional[str] = None
+    venue: Optional[str] = None
+    published_date: Optional[datetime] = None
+    source_urls: Optional[dict[str, str]] = None
 
     def _generate_tldr_with_llm(self, openai_client:OpenAI,llm_params:dict) -> str:
         lang = llm_params.get('language', 'English')
@@ -109,3 +114,4 @@ class CorpusPaper:
     abstract: str
     added_date: datetime
     paths: list[str]
+    full_text: Optional[str] = None
