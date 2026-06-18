@@ -11,7 +11,7 @@ from tqdm import tqdm
 from .corpus import get_corpus_provider_cls
 from .relevance_filter import filter_papers, filter_by_target_date, parse_target_date
 from .reranker.base import get_reranker_cls as get_rr_cls
-from .seen_tracker import filter_seen_papers
+from .seen_tracker import filter_seen_papers, mark_seen, paper_identity
 
 
 class Executor:
@@ -70,11 +70,15 @@ class Executor:
             all_papers = filter_papers(all_papers)
             logger.info(f"Total {before} -> {len(all_papers)} papers after relevance filter")
 
-        # Step 3: cross-day dedup — don't re-send papers from previous days
+        # Step 3: cross-day dedup — don't re-send papers from previous days.
+        # commit=False: only mark these as "seen" after the email actually sends,
+        # so a dry run or a failed send doesn't burn papers from future recommendations.
+        seen_file = self.config.executor.get("seen_papers_file", None)
+        pending_seen_ids: set[str] = set()
         if len(all_papers) > 0:
             before = len(all_papers)
-            seen_file = self.config.executor.get("seen_papers_file", None)
-            all_papers = filter_seen_papers(all_papers, seen_file)
+            all_papers = filter_seen_papers(all_papers, seen_file, commit=False)
+            pending_seen_ids = {pid for p in all_papers if (pid := paper_identity(p))}
             logger.info(f"Total {before} -> {len(all_papers)} papers after cross-day dedup")
         reranked_papers = []
         if len(all_papers) > 0:
@@ -103,5 +107,6 @@ class Executor:
             logger.info("Sending email...")
             send_email(self.config, email_content)
             logger.info("Email sent successfully")
+            mark_seen(seen_file, pending_seen_ids)
         else:
             logger.info("Email sending disabled by executor.send_email=false")

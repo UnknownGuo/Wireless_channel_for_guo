@@ -69,11 +69,15 @@ def paper_identity(paper: Paper) -> str | None:
 def filter_seen_papers(
     papers: list[Paper],
     seen_file: str | None = None,
+    commit: bool = True,
 ) -> list[Paper]:
     """Remove papers that have already been sent on previous days.
 
-    Returns the filtered list.  Also returns the set of newly-seen
-    identifiers so the caller can persist them.
+    If ``commit`` is True (default), newly-seen identifiers are persisted
+    immediately. Pass ``commit=False`` and call :func:`mark_seen` later —
+    e.g. only after the email has actually been sent — so that a dry run
+    or a failed send doesn't permanently remove papers from future
+    recommendations.
     """
     path = _get_seen_path(seen_file)
     seen = load_seen_papers(path)
@@ -92,9 +96,18 @@ def filter_seen_papers(
         kept.append(p)
         newly_seen.add(pid)
 
-    # Store new identifiers for next run
-    fresh = seen | newly_seen
-    if fresh != seen:
-        save_seen_papers(path, fresh)
+    if commit and newly_seen:
+        mark_seen(seen_file, newly_seen)
 
     return kept
+
+
+def mark_seen(seen_file: str | None, identifiers: set[str]) -> None:
+    """Persist additional identifiers as seen (e.g. after a successful send)."""
+    if not identifiers:
+        return
+    path = _get_seen_path(seen_file)
+    seen = load_seen_papers(path)
+    fresh = seen | identifiers
+    if fresh != seen:
+        save_seen_papers(path, fresh)
