@@ -1,138 +1,72 @@
 """Relevance filter for paper recommendation.
 
 Filters papers based on a group profile:
-- Must match at least one core keyword
-- Must match at least one scenario keyword (unless core is very strong)
+- Must match at least one core keyword (hard gate)
+- Combined core/scenario score must clear a threshold
 - If negative keywords dominate, reject
 """
 
 import re
 from datetime import datetime
 from dataclasses import dataclass
+from pathlib import Path
 
-# Default keywords extracted from the group's 84 papers
-KW_CORE: list[str] = [
+import yaml
+
+# Group research profile is maintained in config/group_profile.yaml, not here.
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+_GROUP_PROFILE_PATH = _PROJECT_ROOT / "config" / "group_profile.yaml"
+
+# Fallback used only if config/group_profile.yaml is missing (e.g. installed package).
+_FALLBACK_KW_CORE: list[str] = [
     "channel model",
     "channel modeling",
     "non-stationary",
     "geometry-based",
     "gbsm",
-    "geometry-based stochastic model",
-    "geometry based stochastic model",
     "channel measurement",
     "channel sounding",
     "path loss",
     "shadow fading",
     "doppler",
-    "doppler frequency",
-    "radio map",
-    "spectrum map",
-    "beam training",
-    "angle estimation",
-    "ray tracing",
     "channel estimation",
-    "channel parameter",
-    "channel characteristic",
-    "channel fading",
     "propagation channel",
-    "twin-cluster",
     "mimo channel",
     "massive mimo",
-    "channel emulator",
-    "channel gain map",
-    "channel capacity",
-    "channel characteristics",
-    "channel simulation",
-    "isac",
-    "integrated sensing",
-    "communication and sensing",
-    "communications and sensing",
-    "sensing and communication",
-    "communication-sensing",
-    "wireless sensing and communication",
-    "spectrum sensing",
-    "sensing communication",
 ]
-
-KW_SCENARIO: list[str] = [
+_FALLBACK_KW_SCENARIO: list[str] = [
     "uav",
-    "uavs",
-    "unmanned aerial",
-    "unmanned aerial vehicle",
-    "airborne",
-    "air-to-ground",
-    "air-to-air",
-    "ground-to-air",
-    "space-air-ground",
-    "space-ground",
-    "spaceborne",
-    "satcom",
-    "satellite",
-    "ntn",
-    "non-terrestrial",
-    "leo",
-    "haps",
-    "high altitude platform",
     "v2v",
     "vehicular",
     "mmwave",
-    "millimeter wave",
-    "ultra-wideband",
-    "uwb",
     "ris",
-    "reconfigurable intelligent surface",
     "isac",
     "integrated sensing",
-    "visible light",
-    "maritime",
-    "ship",
-    "vessel",
-    "harbor",
-    "port",
-    "coastal",
-    "railway",
-    "hst",
-    "high-speed train",
-    "lunar",
-    "indoor office",
-    "cell-free",
-    "massive mimo",
-    "sub-6 ghz",
-    "terahertz",
-    "thz",
-    "holographic mimo",
-    "urban canyon",
-    "suburban",
-    "rural",
-    "mountainous terrain",
-    "hilly terrain",
-    "rugged terrain",
-    "complex terrain",
-    "terrain-aware",
-    "valley",
-    "desert",
-    "forest",
-    "tunnel",
 ]
-
-KW_NEGATIVE: list[str] = [
+_FALLBACK_KW_NEGATIVE: list[str] = [
     "graph signal",
-    "crisis management",
-    "cloud security",
-    "traffic volume",
-    "traffic estimation",
-    "space debris",
     "blockchain",
-    "cyber-physical",
-    "generic denoising",
-    "polynomial chaos",
-    "denoising of graph",
     "supply chain",
     "financial",
-    "healthcare management",
-    "food safety",
     "social network",
 ]
+
+
+def _load_group_profile(path: Path = _GROUP_PROFILE_PATH) -> dict:
+    if not path.exists():
+        return {}
+    with open(path, "r", encoding="utf-8") as f:
+        data = yaml.safe_load(f) or {}
+    return data.get("profile", {})
+
+
+_profile_data = _load_group_profile()
+
+KW_CORE: list[str] = _profile_data.get("core_keywords") or _FALLBACK_KW_CORE
+KW_SCENARIO: list[str] = _profile_data.get("scenario_keywords") or _FALLBACK_KW_SCENARIO
+KW_NEGATIVE: list[str] = _profile_data.get("negative_keywords") or _FALLBACK_KW_NEGATIVE
+
+_scoring = _profile_data.get("scoring", {})
 
 
 @dataclass
@@ -149,9 +83,9 @@ class FilterResult:
     reason: str = ""
 
 
-_BASE_CORE_WEIGHT = 2.0
-_SCENARIO_WEIGHT = 1.5
-_NEGATIVE_PENALTY = -5.0
+_BASE_CORE_WEIGHT = _scoring.get("core_weight", 2.0)
+_SCENARIO_WEIGHT = _scoring.get("scenario_weight", 1.5)
+_NEGATIVE_PENALTY = _scoring.get("negative_penalty", -5.0)
 
 
 class RelevanceFilter:
@@ -182,8 +116,13 @@ class RelevanceFilter:
                 reason=f"Negative keywords dominate: {negative_hits} negatives vs core={core_hits}, scenario={scenario_hits}",
             )
 
-        # Balanced mode: core keywords are strong signals, but not a hard gate.
-        # Papers with no core hit can still pass if the overall signal is strong enough.
+        if core_hits == 0:
+            return FilterResult(
+                passed=False,
+                score=score,
+                reason=f"No core keyword matched (scenario={scenario_hits}, negative={negative_hits})",
+            )
+
         pass_threshold = 3.0
         if score < pass_threshold:
             return FilterResult(

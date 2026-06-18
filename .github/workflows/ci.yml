@@ -31,8 +31,6 @@ jobs:
 
       - name: Run Pytest
         env:
-          ZOTERO_ID: "0"
-          ZOTERO_KEY: "AbCdEfGhIjKlMnOpQrStUvWx"
           SENDER: "test@example.com"
           RECEIVER: "test@example.com"
           SENDER_PASSWORD: "test"
