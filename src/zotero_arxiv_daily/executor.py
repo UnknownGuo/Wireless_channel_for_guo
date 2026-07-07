@@ -1,7 +1,6 @@
 from loguru import logger
 from omegaconf import DictConfig
 from .retriever import get_retriever_cls
-from datetime import datetime
 from .reranker import get_reranker_cls
 from .construct_email import render_email
 from .utils import send_email
@@ -9,7 +8,7 @@ from .dedup import deduplicate_papers
 from openai import OpenAI
 from tqdm import tqdm
 from .corpus import get_corpus_provider_cls
-from .relevance_filter import filter_papers, filter_by_target_date, parse_target_date
+from .relevance_filter import filter_papers
 from .reranker.base import get_reranker_cls as get_rr_cls
 from .seen_tracker import filter_seen_papers, mark_seen, paper_identity
 
@@ -48,17 +47,6 @@ class Executor:
             logger.info(f"Retrieved {len(papers)} {source} papers")
             all_papers.extend(papers)
         logger.info(f"Total {len(all_papers)} papers retrieved from all sources")
-
-        # Step 1: date filter — keep only papers from 7 days ago (or explicit TARGET_DATE)
-        target_date = parse_target_date(self.config.get("target_date", None))
-        if not target_date:
-            # Default: 7 days ago
-            from datetime import timedelta
-            target_date = datetime.now() - timedelta(days=7)
-            logger.info(f"No TARGET_DATE set — filtering to {target_date.date()} (7 days ago)")
-        before = len(all_papers)
-        all_papers = filter_by_target_date(all_papers, target_date)
-        logger.info(f"Total {before} -> {len(all_papers)} papers after date filter")
 
         # Step 2: deduplication
         all_papers = deduplicate_papers(all_papers)
@@ -103,7 +91,10 @@ class Executor:
             with open(report_path, "w", encoding="utf-8") as f:
                 f.write(email_content)
             logger.info(f"Report written to {report_path}")
-        if self.config.executor.get("send_email", True):
+        send_email_flag = self.config.executor.get("send_email", True)
+        if isinstance(send_email_flag, str):
+            send_email_flag = send_email_flag.strip().lower() == "true"
+        if send_email_flag:
             logger.info("Sending email...")
             send_email(self.config, email_content)
             logger.info("Email sent successfully")
